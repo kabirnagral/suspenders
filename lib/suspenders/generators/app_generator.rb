@@ -46,6 +46,7 @@ module Suspenders
       invoke :setup_test_environment
       invoke :setup_production_environment
       invoke :setup_secret_token
+      invoke :create_suspenders_views
       invoke :configure_app
       invoke :copy_miscellaneous_files
       invoke :customize_error_pages
@@ -54,6 +55,7 @@ module Suspenders
       invoke :setup_dotfiles
       invoke :setup_database
       invoke :create_github_repo
+      invoke :setup_segment
       invoke :setup_bundler_audit
       invoke :setup_spring
       invoke :generate_default
@@ -93,13 +95,8 @@ module Suspenders
 
     def setup_test_environment
       say 'Setting up the test environment'
-      build :generate_rspec
-      build :configure_rspec
-      build :provide_shoulda_matchers_config
-      build :configure_spec_support_features
+      build :configure_background_jobs_for_rspec
       build :configure_ci
-      build :configure_i18n_for_test_environment
-      build :configure_action_mailer_in_specs
       build :configure_capybara_webkit
     end
 
@@ -117,9 +114,19 @@ module Suspenders
       build :setup_secret_token
     end
 
+    def create_suspenders_views
+      say 'Creating suspenders views'
+      build :create_partials_directory
+      build :create_shared_flashes
+      build :create_shared_javascripts
+      build :create_shared_css_overrides
+      build :create_application_layout
+    end
+
     def configure_app
       say 'Configuring app'
       build :configure_action_mailer
+      build :configure_active_job
       build :configure_time_formats
       build :setup_default_rake_task
       build :replace_default_puma_configuration
@@ -153,6 +160,11 @@ module Suspenders
         say 'Creating Github repo'
         build :create_github_repo, options[:github]
       end
+    end
+
+    def setup_segment
+      say 'Setting up Segment'
+      build :setup_segment
     end
 
     def setup_dotfiles
@@ -193,17 +205,16 @@ module Suspenders
 
     def generate_default
       run("spring stop")
+      generate("suspenders:initialize_active_job")
       generate("suspenders:enforce_ssl")
       generate("suspenders:static")
       generate("suspenders:stylesheet_base")
+      generate("suspenders:testing")
       generate("suspenders:ci")
       generate("suspenders:forms")
       generate("suspenders:db_optimizations")
       generate("suspenders:factories")
       generate("suspenders:lint")
-      generate("suspenders:jobs")
-      generate("suspenders:analytics")
-      generate("suspenders:views")
     end
 
     def outro
